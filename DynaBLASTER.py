@@ -16,6 +16,19 @@ import json
 
 ITEMS = ('+bombs', '+power')
 
+class FullScreenApp(object):
+    def __init__(self, master, **kwargs):
+        self.master=master
+        pad=3
+        self._geom='1000x1000+0+0'
+        master.geometry("{0}x{1}+0+0".format(
+            master.winfo_screenwidth()-pad, master.winfo_screenheight()-pad))
+        master.bind('<Escape>',self.toggle_geom)            
+    def toggle_geom(self,event):
+        geom=self.master.winfo_geometry()
+        print(geom,self._geom)
+        self.master.geometry(self._geom)
+        self._geom=geom
 
 class Graphics(object):
     def __init__(self, canvas, rows, cols, size, window):
@@ -28,7 +41,9 @@ class Graphics(object):
         self.label = {}
         self.label_vars = {}
         self.icons = (ImageTk.PhotoImage(file='png/faceicon0.png'),
-                      ImageTk.PhotoImage(file='png/faceicon1.png'))
+                      ImageTk.PhotoImage(file='png/faceicon1.png'),
+                      ImageTk.PhotoImage(file='png/faceicon2.png'),
+                      ImageTk.PhotoImage(file='png/faceicon3.png'))
         self.draw_static_grid()
         self.draw_changing_grid()
         self.info_labels()
@@ -37,7 +52,7 @@ class Graphics(object):
     def make_creator_label(self):
         self.canvas.create_text(self.cols*self.size/2+self.size/2,
                                 self.rows*self.size+self.size*2/3+2,
-                                text='Created by Abel Svoboda, 08/07/15')
+                                text='Created by Abel Svoboda, extended by Csabi')
 
     def draw_static_grid(self):
         '''draws the grid that is made at the start of the game'''
@@ -81,6 +96,8 @@ class Graphics(object):
 
                 if (row==1 or row==2) and (col==1 or col==2) or \
                    (row==self.rows-2 or row==self.rows-3) and (col==self.cols-2 or col==self.cols-3) or \
+                   (row==self.rows-2 or row==self.rows-3) and (col==1 or col==2) or \
+                   (row==1 or row==2) and (col==self.cols-2 or col==self.cols-3) or \
                    row%2==0 and col%2==0 or \
                    row==0 or col==0 or row==self.rows-1 or col==self.cols-1:
                     pass
@@ -449,13 +466,14 @@ class Player(object):
             for player in self.players:
                 if not player.dead:
                     num_alive += 1
+            #print('num_alive',num_alive)
             if num_alive < 2:
-                num_dead = False
+                num_dead = 0
                 for player in self.players:
                     if player.dead:
                         num_dead += 1
-                if num_dead < 2:
-                    self.after(3000, self.end_round_screen)
+            #print('num_dead', num_dead)                        
+                self.after(3000, self.end_round_screen)
 
     def end_round_screen(self):
         '''determines data used for the end of round kill screen'''
@@ -741,6 +759,9 @@ def key_release_of(key):
 
 def main():
     '''runs the program'''
+    
+    PLAYER3, PLAYER4 = True, True
+    
     square_width = 64
     num_cols = 7
     num_rows = 6
@@ -748,11 +769,14 @@ def main():
     canvas_height = (num_rows+1)*square_width
 
     window = Tk()
+    #app = FullScreenApp(window)
+    #window.attributes("-fullscreen", True)
+    #window.attributes('-zoomed', True)
     window.configure(background='black')
     window.title("DynaBLASTER")
     window.resizable(0,0) #removes maximize option
     #window.iconbitmap('icon.ico')
-    #window.tk.call('tk', 'scaling', 20.0)
+    window.tk.call('tk', 'scaling', 20.0)
 
     canvas = Canvas(window, width=canvas_width, highlightthickness=0,
                     height=canvas_height, background='#717171')
@@ -765,12 +789,19 @@ def main():
     row=0
     player1 = Player(canvas, board, square_width, graphics, col, row)
     col = graphics.cols - 3
-    row = graphics.rows - 3
     player2 = Player(canvas, board, square_width, graphics, col, row)
 
+    if PLAYER3:
+        row = graphics.rows - 3
+        player3 = Player(canvas, board, square_width, graphics, col, row)
+    
+    if PLAYER4:
+        col = 0
+        player4 = Player(canvas, board, square_width, graphics, col, row)
+    
     # Import settings from bindings file
     bindings_file = open('bindings.json')
-    p1_bindings, p2_bindings, gen_bindings = json.load(bindings_file)
+    p1_bindings, p2_bindings, p3_bindings, p4_bindings, gen_bindings = json.load(bindings_file)
 
     window.bind(key_release_of(p1_bindings["Up"]), lambda event:player1.key_release('Up'))
     window.bind(key_release_of(p1_bindings["Down"]), lambda event:player1.key_release('Down'))
@@ -791,8 +822,30 @@ def main():
     window.bind(p2_bindings["Left"], lambda event:player2.key_press('Left'))
     window.bind(p2_bindings["Right"], lambda event:player2.key_press('Right'))
     window.bind(p2_bindings["Bomb"], player2.place_bomb)
-
-    window.bind(gen_bindings["Pause"], lambda event:pause_game(player1, player2, graphics))
+    
+    
+    if PLAYER3:
+        window.bind(key_release_of(p3_bindings["Up"]), lambda event:player3.key_release('Up'))
+        window.bind(key_release_of(p3_bindings["Down"]), lambda event:player3.key_release('Down'))
+        window.bind(key_release_of(p3_bindings["Left"]), lambda event:player3.key_release('Left'))
+        window.bind(key_release_of(p3_bindings["Right"]), lambda event:player3.key_release('Right'))
+        window.bind(p3_bindings["Up"], lambda event:player3.key_press('Up'))
+        window.bind(p3_bindings["Down"],lambda event:player3.key_press('Down'))
+        window.bind(p3_bindings["Left"], lambda event:player3.key_press('Left'))
+        window.bind(p3_bindings["Right"], lambda event:player3.key_press('Right'))
+        window.bind(p3_bindings["Bomb"], player3.place_bomb)
+    
+    if PLAYER4:
+        window.bind(key_release_of(p4_bindings["Up"]), lambda event:player4.key_release('Up'))
+        window.bind(key_release_of(p4_bindings["Down"]), lambda event:player4.key_release('Down'))
+        window.bind(key_release_of(p4_bindings["Left"]), lambda event:player4.key_release('Left'))
+        window.bind(key_release_of(p4_bindings["Right"]), lambda event:player4.key_release('Right'))
+        window.bind(p4_bindings["Up"], lambda event:player4.key_press('Up'))
+        window.bind(p4_bindings["Down"],lambda event:player4.key_press('Down'))
+        window.bind(p4_bindings["Left"], lambda event:player4.key_press('Left'))
+        window.bind(p4_bindings["Right"], lambda event:player4.key_press('Right'))
+        window.bind(p4_bindings["Bomb"], player4.place_bomb)
+    window.bind(gen_bindings["Pause"], lambda event:pause_game(player1, player2, player3, player4, graphics))
 
     window.mainloop()
 
